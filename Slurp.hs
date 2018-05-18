@@ -34,6 +34,7 @@ data Results = Results {
         binary_size     :: Maybe Int,
         link_time       :: Maybe Float,
         run_time        :: [Float],
+        max_residency   :: [Integer],
         elapsed_time    :: [Float],
         mut_time        :: [Float],
         mut_elapsed_time :: [Float],
@@ -65,6 +66,7 @@ emptyResults = Results {
         binary_size     = Nothing,
         link_time       = Nothing,
         run_time        = [],
+        max_residency   = [],
         elapsed_time    = [],
         mut_time        = [],
         mut_elapsed_time = [],
@@ -186,7 +188,7 @@ ghc5_re :: String -> Maybe (Integer, Integer, Integer, Integer, Integer, Integer
 ghc5_re s = case matchRegex re s of
                 Just [allocations, gcs, avg_residency, max_residency, samples, gc_work', in_use, initialisation, initialisation_elapsed, mut, mut_elapsed, gc, gc_elapsed, gc0, gc0_elapsed, gc1, gc1_elapsed, bal] ->
                     Just (read allocations, read gcs, read avg_residency, read max_residency, read samples, read gc_work', 1048576 * read in_use, read initialisation, read initialisation_elapsed, read mut, read mut_elapsed, read gc, read gc_elapsed, read gc0, read gc0_elapsed, read gc1, read gc1_elapsed, read bal)
-                Just _ -> error "ghc3_re: Can't happen"
+                Just _ -> error "ghc5_re: Can't happen"
                 Nothing -> Nothing
     where re = mkRegex "^<<ghc:[ \t]+([0-9]+)[ \t]+bytes,[ \t]*([0-9]+)[ \t]+GCs,[ \t]*([0-9]+)/([0-9]+)[ \t]+avg/max bytes residency \\(([0-9]+) samples\\), ([0-9]+) bytes GC work, ([0-9]+)M in use, ([0-9.]+) INIT \\(([0-9.]+) elapsed\\), ([0-9.]+) MUT \\(([0-9.]+) elapsed\\), ([0-9.]+) GC \\(([0-9.]+) elapsed\\), ([0-9.]+) GC\\(0\\) \\(([0-9.]+) elapsed\\), ([0-9.]+) GC\\(1\\) \\(([0-9.]+) elapsed\\), ([0-9.]+) balance :ghc>>"
 
@@ -194,7 +196,7 @@ ghc6_re :: String -> Maybe (Integer, Integer, Integer, Integer, Integer, Integer
 ghc6_re s = case matchRegex re s of
                 Just [allocations, gcs, gc0_count, gc1_count, avg_residency, max_residency, samples, gc_work', in_use, initialisation, initialisation_elapsed, mut, mut_elapsed, gc, gc_elapsed, gc0, gc0_elapsed, gc1, gc1_elapsed, bal] ->
                     Just (read allocations, read gcs, read avg_residency, read max_residency, read samples, read gc_work', 1048576 * read in_use, read initialisation, read initialisation_elapsed, read mut, read mut_elapsed, read gc, read gc_elapsed, read gc0_count, read gc0, read gc0_elapsed, read gc1_count, read gc1, read gc1_elapsed, read bal)
-                Just _ -> error "ghc3_re: Can't happen"
+                Just _ -> error "ghc6_re: Can't happen"
                 Nothing -> Nothing
     where re = mkRegex "^<<ghc:[ \t]+([0-9]+)[ \t]+bytes,[ \t]*([0-9]+)[ \t]+GCs[ \t]+\\(([0-9]+)[ \t]*\\+[ \t]*([0-9]+)\\),[ \t]*([0-9]+)/([0-9]+)[ \t]+avg/max bytes residency \\(([0-9]+) samples\\), ([0-9]+) bytes GC work, ([0-9]+)M in use, ([0-9.]+) INIT \\(([0-9.]+) elapsed\\), ([0-9.]+) MUT \\(([0-9.-]+) elapsed\\), ([0-9.]+) GC \\(([0-9.]+) elapsed\\), ([0-9.]+) GC\\(0\\) \\(([0-9.]+) elapsed\\), ([0-9.]+) GC\\(1\\) \\(([0-9.]+) elapsed\\), ([0-9.]+) balance :ghc>>"
 
@@ -202,7 +204,7 @@ ghc7_re :: String -> Maybe (Integer, Integer, Integer, Integer, Integer, Integer
 ghc7_re s = case matchRegex re s of
                 Just [allocations, gcs, gc0_count, gc1_count, avg_residency, max_residency, samples, gc_work', in_use, initialisation, initialisation_elapsed, mut, mut_elapsed, gc, gc_elapsed, gc0, gc0_elapsed, gc1, gc1_elapsed, bal, instructions, memory_reads, memory_writes, l2_cache_misses] ->
                     Just (read allocations, read gcs, read avg_residency, read max_residency, read samples, read gc_work', 1048576 * read in_use, read initialisation, read initialisation_elapsed, read mut, read mut_elapsed, read gc, read gc_elapsed, read gc0_count, read gc0, read gc0_elapsed, read gc1_count, read gc1, read gc1_elapsed, read bal, read instructions, read memory_reads, read memory_writes, read l2_cache_misses)
-                Just _ -> error "ghc3_re: Can't happen"
+                Just _ -> error "ghc7_re: Can't happen"
                 Nothing -> Nothing
     where re = mkRegex "^<<ghc-instrs:[ \t]+([0-9]+)[ \t]+bytes,[ \t]*([0-9]+)[ \t]+GCs[ \t]+\\(([0-9]+)[ \t]*\\+[ \t]*([0-9]+)\\),[ \t]*([0-9]+)/([0-9]+)[ \t]+avg/max bytes residency \\(([0-9]+) samples\\), ([0-9]+) bytes GC work, ([0-9]+)M in use, ([0-9.]+) INIT \\(([0-9.]+) elapsed\\), ([0-9.]+) MUT \\(([0-9.-]+) elapsed\\), ([0-9.]+) GC \\(([0-9.]+) elapsed\\), ([0-9.]+) GC\\(0\\) \\(([0-9.]+) elapsed\\), ([0-9.]+) GC\\(1\\) \\(([0-9.]+) elapsed\\), ([0-9.]+) balance, ([0-9]+) instructions, ([0-9]+) memory reads, ([0-9]+) memory writes, ([0-9]+) L2 cache misses :ghc-instrs>>"
 
@@ -232,6 +234,7 @@ combine2Results
                       compile_allocs = ca1,
                       module_size = ms1,
                       run_time = rt1, elapsed_time = et1, mut_time = mt1,
+                      max_residency = mres1,
                       mut_elapsed_time = me1,
                       instrs = is1, mem_reads = mr1, mem_writes = mw1,
                       cache_misses = cm1,
@@ -246,6 +249,7 @@ combine2Results
                       compile_allocs = ca2,
                       module_size = ms2,
                       run_time = rt2, elapsed_time = et2, mut_time = mt2,
+                      max_residency = mres2,
                       mut_elapsed_time = me2,
                       instrs = is2, mem_reads = mr2, mem_writes = mw2,
                       cache_misses = cm2,
@@ -261,6 +265,7 @@ combine2Results
                       module_size    = Map.unionWith (flip const) ms1 ms2,
                       link_time      = lt1 `mplus` lt2,
                       run_time       = rt1 ++ rt2,
+                      max_residency  = mres1 ++ mres2,
                       elapsed_time   = et1 ++ et2, 
                       mut_time       = mt1 ++ mt2,
                       mut_elapsed_time = me1 ++ me2,
@@ -366,52 +371,52 @@ parse_run_time _ [] _ NotDone = []
 parse_run_time prog [] res ex = [(prog, res{run_status=ex})]
 parse_run_time prog (l:ls) res ex =
         case ghc1_re l of {
-           Just (allocations, _, _, _, _, _, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed) ->
-                got_run_result allocations initialisation init_elapsed mut mut_elapsed gc gc_elapsed [] [] [] [] [] [] []
+           Just (allocations, _, _, max_residency, _, _, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed) ->
+                got_run_result allocations max_residency initialisation init_elapsed mut mut_elapsed gc gc_elapsed [] [] [] [] [] [] []
                         [] Nothing Nothing Nothing Nothing [];
            Nothing ->
 
         case ghc2_re l of {
-           Just (allocations, _, _, _, _, in_use, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed) ->
-                got_run_result allocations initialisation init_elapsed mut mut_elapsed gc gc_elapsed [] [] [] [] [] [] []
+           Just (allocations, _, _, max_residency, _, in_use, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed) ->
+                got_run_result allocations max_residency initialisation init_elapsed mut mut_elapsed gc gc_elapsed [] [] [] [] [] [] []
                         [] Nothing Nothing Nothing Nothing [in_use];
 
             Nothing ->
 
         case ghc3_re l of {
-           Just (allocations, _, _, _, _, gc_work', in_use, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed) ->
-                got_run_result allocations initialisation init_elapsed mut mut_elapsed gc gc_elapsed [] [] [] [] [] [] []
+           Just (allocations, _, _, max_residency, _, gc_work', in_use, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed) ->
+                got_run_result allocations max_residency initialisation init_elapsed mut mut_elapsed gc gc_elapsed [] [] [] [] [] [] []
                         [gc_work'] Nothing Nothing Nothing Nothing [in_use];
 
             Nothing ->
 
         case ghc4_re l of {
-           Just (allocations, _, _, _, _, gc_work', in_use, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed, is, mem_rs, mem_ws, cache_misses') ->
-                got_run_result allocations initialisation init_elapsed mut mut_elapsed gc gc_elapsed [] [] [] [] [] [] []
+           Just (allocations, _, _, max_residency, _, gc_work', in_use, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed, is, mem_rs, mem_ws, cache_misses') ->
+                got_run_result allocations max_residency initialisation init_elapsed mut mut_elapsed gc gc_elapsed [] [] [] [] [] [] []
                         [gc_work'] (Just is) (Just mem_rs)
                         (Just mem_ws) (Just cache_misses') [in_use];
 
             Nothing ->
 
         case ghc5_re l of {
-           Just (allocations, _, _, _, _, gc_work', in_use, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed, gc0, gc0_elapsed, gc1, gc1_elapsed, bal) ->
-                got_run_result allocations initialisation init_elapsed mut mut_elapsed gc gc_elapsed
+           Just (allocations, _, _, max_residency, _, gc_work', in_use, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed, gc0, gc0_elapsed, gc1, gc1_elapsed, bal) ->
+                got_run_result allocations max_residency initialisation init_elapsed mut mut_elapsed gc gc_elapsed
                         [] [gc0] [gc0_elapsed] [] [gc1] [gc1_elapsed] [bal]
                         [gc_work'] Nothing Nothing Nothing Nothing [in_use];
 
             Nothing ->
 
         case ghc6_re l of {
-           Just (allocations, _, _, _, _, gc_work', in_use, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed, gc0_count, gc0, gc0_elapsed, gc1_count, gc1, gc1_elapsed, bal) ->
-                got_run_result allocations initialisation init_elapsed mut mut_elapsed gc gc_elapsed
+           Just (allocations, _, _, max_residency, _, gc_work', in_use, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed, gc0_count, gc0, gc0_elapsed, gc1_count, gc1, gc1_elapsed, bal) ->
+                got_run_result allocations max_residency initialisation init_elapsed mut mut_elapsed gc gc_elapsed
                         [gc0_count] [gc0] [gc0_elapsed] [gc1_count] [gc1] [gc1_elapsed] [bal]
                         [gc_work'] Nothing Nothing Nothing Nothing [in_use];
 
             Nothing ->
 
         case ghc7_re l of {
-           Just (allocations, _, _, _, _, gc_work', in_use, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed, gc0_count, gc0, gc0_elapsed, gc1_count, gc1, gc1_elapsed, bal, is, mem_rs, mem_ws, cache_misses') ->
-                got_run_result allocations initialisation init_elapsed mut mut_elapsed gc gc_elapsed
+           Just (allocations, _, _, max_residency, _, gc_work', in_use, initialisation, init_elapsed, mut, mut_elapsed, gc, gc_elapsed, gc0_count, gc0, gc0_elapsed, gc1_count, gc1, gc1_elapsed, bal, is, mem_rs, mem_ws, cache_misses') ->
+                got_run_result allocations max_residency initialisation init_elapsed mut mut_elapsed gc gc_elapsed
                         [gc0_count] [gc0] [gc0_elapsed] [gc1_count] [gc1] [gc1_elapsed] [bal]
                         [gc_work'] (Just is) (Just mem_rs) (Just mem_ws) (Just cache_misses') [in_use];
 
@@ -445,13 +450,14 @@ parse_run_time prog (l:ls) res ex =
 
         }}}}}}}}}}}
   where
-  got_run_result allocations initialisation init_elapsed mut mut_elapsed gc gc_elapsed gc0_count gc0 gc0_elapsed gc1_count gc1 gc1_elapsed bal gc_work' instrs' mem_rs mem_ws cache_misses' in_use
+  got_run_result allocations maxResidency initialisation init_elapsed mut mut_elapsed gc gc_elapsed gc0_count gc0 gc0_elapsed gc1_count gc1 gc1_elapsed bal gc_work' instrs' mem_rs mem_ws cache_misses' in_use
       = -- trace ("got_run_result: " ++ initialisation ++ ", " ++ mut ++ ", " ++ gc) $
         let
           time = initialisation + mut + gc
           etime = init_elapsed + mut_elapsed + gc_elapsed
           res' = combine2Results res
                         emptyResults{   run_time   = [time],
+                                        max_residency = [maxResidency],
                                         elapsed_time = [etime],
                                         mut_time   = [mut],
                                         mut_elapsed_time   = [mut_elapsed],

@@ -126,6 +126,7 @@ size_spec, alloc_spec, runtime_spec, elapsedtime_spec, muttime_spec, mutetime_sp
 size_spec    = SpecP "Binary Sizes" "Size" "binary-sizes" binary_size compile_status always_ok
 alloc_spec   = SpecP "Allocations" "Allocs" "allocations" (meanInt allocs) run_status always_ok
 runtime_spec = SpecP "Run Time" "Runtime" "run-times" (mean run_time) run_status mean_time_ok
+max_res_spec = SpecP "Maximum Residency" "MaxRes" "max-residency" (meanInt max_residency) run_status always_ok
 elapsedtime_spec = SpecP "Elapsed Time" "Elapsed" "elapsed-times" (mean elapsed_time) run_status mean_time_ok
 muttime_spec = SpecP "Mutator Time" "MutTime" "mutator-time" (mean mut_time) run_status mean_time_ok
 mutetime_spec = SpecP "Mutator Elapsed Time" "MutETime" "mutator-elapsed-time" (mean mut_elapsed_time) run_status mean_time_ok
@@ -150,6 +151,7 @@ all_specs = [
   size_spec,
   alloc_spec,
   runtime_spec,
+  max_res_spec,
   elapsedtime_spec,
   muttime_spec,
   mutetime_spec,
@@ -216,7 +218,7 @@ checkTimes prog results = do
 -- These are the per-prog tables we want to generate
 per_prog_result_tab :: [PerProgTableSpec]
 per_prog_result_tab =
-        [ size_spec, alloc_spec, runtime_spec, elapsedtime_spec, muttime_spec, mutetime_spec, gctime_spec,
+        [ size_spec, alloc_spec, runtime_spec, max_res_spec, elapsedtime_spec, muttime_spec, mutetime_spec, gctime_spec,
           gcelap_spec, gc0count_spec, gc0time_spec, gc0elap_spec, gc1count_spec, gc1time_spec, gc1elap_spec,
           gcwork_spec, balance_spec, instrs_spec, mreads_spec, mwrite_spec, cmiss_spec, totmem_spec]
 
